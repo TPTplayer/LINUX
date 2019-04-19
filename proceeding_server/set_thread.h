@@ -1,12 +1,16 @@
-#include <sys/epoll.h>
-#include <sys/types.h>
-
-typedef struct _arg_struct{
+typedef struct _POLL_ARG{
 	int epfd;
-	int limit;
-	struct epoll_event *ep_evnt;
-}arg_struct;
+	struct epoll_event *evnt;
+	int maxevnts;
+	int server_fd;
+}poll_arg;
 
-int background_polling(int epfd, struct epoll_event *ep_evnt, int limit);
+typedef struct _POLL_RT{
+	int *client_fd;
+	int que;
+}poll_rt;
 
+void *connect_polling(void *argument);
+void *rt_polling(void *argument);
+void *check_hangup(void *);
 

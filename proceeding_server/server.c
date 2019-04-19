@@ -1,59 +1,97 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
-#include <unistd.h>
+#include <pthread.h>
+#include <errno.h>
 
-#include "set_epoll.h"
 #include "set_socket.h"
+#include "set_thread.h"
+#include "util.h"
 
-#define DEFAULT 0
-#define PORT 5000
-#define SIZE sizeof(struct sockaddr_in)
-#define Q_SIZE 10
+#define QUE 10
 
-void error_handler(int err_num, char *func);
+int client_fd[QUE];
+int client_fd_stat[QUE];
 
-int main(void){
-	int server_fd = 0;
-	int retval = 0;
-	struct sockaddr_in addr = {AF_INET, PORT, INADDR_ANY};
+int main(int argc, char **argv){
+	int server_fd = 0, epfd = 0, retval = 0;
 	struct epoll_event *ep_evnt;
+	poll_arg *arg;
+	poll_rt *rt_arg;
 
-	retval = server_ready(&server_fd, &addr, DEFAULT, SIZE);
-	if(retval != 0){
-		fprintf(stderr, "%s\n", strerror(retval));
+	pthread_t thread_poll, thread_rt, thread_hangup;
+
+	if(argc != 2){
+		fprintf(stderr, "Usage: ./<filename> <port number>\n");
+		return 1;
+	}
+
+	if((set_socket(&server_fd, atoi(argv[1]))) != 0){
+		error_handler(errno, "set_socket");
 		exit(1);
 	}
 	
-	ep_evnt = malloc(sizeof(struct epoll_evnet)*Q_SIZE);
-	if(ep_evnt == NULL){
+	if((ep_evnt = malloc(sizeof(struct epoll_event) * QUE)) == NULL){
 		error_handler(errno, "malloc");
-		close(server_fd);
+		exit(1);
+	}
+	
+	if((arg = malloc(sizeof(poll_arg))) == NULL){
+		error_handler(errno, "malloc");
 		exit(1);
 	}
 
-	retval = server_polling(&server_fd, ep_evnt, Q_SIZE);
-	if(retval != 0){
-		fprintf(stderr, "%s\n", strerror(retval));
-		
-		free(ep_evnt);
-		close(server_fd);
-		
+	if((rt_arg = malloc(sizeof(poll_rt))) == NULL){
+		error_handler(errno, "malloc");
 		exit(1);
 	}
-	else{
-		close(server_fd);
-		free(ep_evnt);
 
-		return 0;
+	if((set_polling(&epfd, &server_fd, ep_evnt)) != 0){
+		error_handler(errno, "set_polling");
+		exit(1);
 	}
-}
+	
+	arg->epfd = epfd;
+	arg->maxevnts = QUE;
+	arg->server_fd = server_fd;
+	
+	rt_arg->client_fd = client_fd;
+	rt_arg->que = QUE;
 
-void error_handler(int err_num, char *func){
-	fprintf(stderr, "%s: %s\n", strerror(err_num), func);
+	if((retval = pthread_create(&thread_poll, NULL, connect_polling, arg)) != 0){
+		error_handler(errno, "pthread_create");
+		exit(1);
+	}
+	
+	if((retval = pthread_create(&thread_rt, NULL, rt_polling, rt_arg)) != 0){
+		error_handler(errno, "pthread_create");
+		exit(1);
+	}
+	
+	if((retval = pthread_create(&thread_hangup, NULL, check_hangup, NULL)) != 0){
+		error_handler(errno, "pthread_create");
+		exit(1);
+	}
+
+	if((retval = pthread_join(thread_poll, NULL)) != 0){
+		error_handler(retval, "pthread_join");
+		exit(1);
+	}
+
+	if((retval = pthread_join(thread_rt, NULL)) != 0){
+		error_handler(retval, "pthread_join");
+		exit(1);
+	}
+	
+	if((retval = pthread_join(thread_hangup, NULL)) != 0){
+		error_handler(retval, "pthread_join");
+		exit(1);
+	}
+
+	return 0;
 }

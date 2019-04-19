@@ -4,8 +4,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include "blkmap.h"
-#include "devicedriver.h"
-#include "ftlmgr.h"
 
 extern FILE *devicefp;
 int block_table[DATABLKS_PER_DEVICE]; 
@@ -38,11 +36,19 @@ void ftl_open(){
 			}
 			else{
 				block_table[cnt] = pbn;
+				if((dd_erase(block_table[cnt])) == -1){
+					fprintf(stderr, "error: dd_erase\n");
+					exit(1);
+				}
 			}
 		}
 	}
 
 	free_block[0] = BLOCKS_PER_DEVICE-1;
+	if((dd_erase(BLOCKS_PER_DEVICE-1)) == -1){
+		fprintf(stderr, "error: dd_erase\n");
+		exit(1);
+	}
 
 	return;
 }
@@ -77,6 +83,7 @@ void ftl_write(int lsn, char *sectorbuf){
 	buf = (char**)malloc(sizeof(char*) * PAGES_PER_BLOCK);
 	for(int i = 0; i < PAGES_PER_BLOCK; i++){
 		buf[i] = (char*)malloc(sizeof(char) * PAGE_SIZE);
+		memset(buf[i], 0xFF, PAGE_SIZE);
 	}
 
 	lbn = lsn / PAGES_PER_BLOCK; //get logical block number
@@ -116,7 +123,7 @@ void ftl_write(int lsn, char *sectorbuf){
 			exit(1);
 		}
 
-		memset(buf[i], 0, PAGE_SIZE);
+		memset(buf[i], 0xFF, PAGE_SIZE);
 	}
 
 	/*erase*/
@@ -186,7 +193,7 @@ void ftl_write(int lsn, char *sectorbuf){
 			exit(1);
 		}
 
-		memset(buf[i], 0, PAGE_SIZE);
+		memset(buf[i], 0xFF, PAGE_SIZE);
 	}
 
 	/*erase: free block*/

@@ -1,7 +1,5 @@
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <sys/epoll.h>
+#define QUE 10
 
-int server_ready(int *server_fd, struct sockaddr_in *addr, int option, int size, int q_size);
-int server_polling(int *server_fd, struct epoll_event *ep_evnt, int limit);
-
-
+int set_socket(int *serverf_fd, int port_num);
+int set_polling(int *epfd, int *server_fd, struct epoll_event *ep_evnt);

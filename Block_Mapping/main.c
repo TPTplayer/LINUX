@@ -20,12 +20,7 @@ int main(int argc, char *argv[])
 	char **buf = (char**)malloc(sizeof(char*) * BLOCKS_PER_DEVICE);
 	for(i = 0; i < BLOCKS_PER_DEVICE; i++){
 		buf[i] = (char*)malloc(sizeof(char) * SECTOR_SIZE);
-		if(i % 5 == 0){
-			memset(buf[i], '5', SECTOR_SIZE);
-		}
-		else{
-			memset(buf[i], '1', SECTOR_SIZE);
-		}
+		sprintf(buf[i], "flandre scarlet");
 	}
 
     devicefp = fopen("flashmemory", "w+b");

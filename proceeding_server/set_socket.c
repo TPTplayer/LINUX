@@ -1,50 +1,48 @@
-#include "set_socket.h"
-#include "set_thread.h"
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <errno.h>
 
-int server_ready(int *server_fd, struct sockaddr_in *addr, int option, int size, int q_size){
-	*server_fd = socket(AF_INET, SOCK_STREAM, option);
-	if(*server_fd == -1){
-		printf("socket: ");
+#define SIZE sizeof(struct sockaddr_in)
+#define QUE 10
+
+int set_socket(int *server_fd, int port_num){
+	struct sockaddr_in server_addr;
+
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = port_num;
+	server_addr.sin_addr.s_addr = INADDR_ANY;
+
+	if((*server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
 		return errno;
 	}
 
-	if((bind(*server_fd, (struct sockaddr*)addr, size)) == -1){
-		printf("bind: ");
+	if((bind(*server_fd, (struct sockaddr*)&server_addr, SIZE)) == -1){
 		return errno;
 	}
 
-	if((listen(*server_fd, q_size)) == -1){
-		printf("listen: ");
+	if((listen(*server_fd, QUE)) == -1){
 		return errno;
 	}
 
 	return 0;
 }
 
-int server_polling(int *server_fd, struct epoll_event *ep_evnt, int limit){
-	int epfd = 0, num_evnt = 0, retval = 0;
-	
-	epfd = epoll_create1(0);
-	if(epfd == -1){
-		printf("epoll_create1: ");
+int set_polling(int *epfd, int *server_fd, struct epoll_event *ep_evnt){
+	*epfd = epoll_create1(0);
+	if(*epfd == -1){
 		return errno;
 	}
 
-	if(epoll_ctl(epfd, EPOLL_CTL_ADD, *server_fd, ep_evnt) == -1){
-		close(epfd);
-		printf("epoll_ctl: ");
+	if((epoll_ctl(*epfd, EPOLL_CTL_ADD, *server_fd, ep_evnt)) == -1){
 		return errno;
 	}
-	
-	
+
+	return 0;
 }
-
-
