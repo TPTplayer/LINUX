@@ -1,0 +1,7 @@
+Usage
+
+DO the following on the First Run:
+./watcher.out -config
+<path>: <Path to Watch>
+<filename (log)>: <log file name>
+<filename (errror log)>: <error log file name>
