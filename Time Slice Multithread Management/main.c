@@ -13,7 +13,7 @@
 void error_handler(int err_num, char *func);
 
 int main(void){
-	int tt_thread_num = 0, *period, res = 0;
+	int tt_thread_num = 0, *period, res = 0, cnt = 0;
 	pthread_t *thread_arr, timer;
 	struct TCB *T_info;
 
@@ -37,16 +37,16 @@ int main(void){
 		break;
 	}
 	
-	for(int i = 0; i < tt_thread_num; i++){
-		printf("Thread %d - period(ms, Require at least 1ms): ", i);
-		scanf("%d", &(period[i]));
+	for(cnt = 0; cnt < tt_thread_num; cnt++){
+		printf("Thread %d - period(ms, Require at least 1ms): ", cnt);
+		scanf("%d", &(period[cnt]));
 	}
 	
-	for(int i = 0; i < tt_thread_num; i++){
-		T_info[i].thread_id = i;
-		T_info[i].period = period[i];
+	for(cnt = 0; cnt < tt_thread_num; cnt++){
+		T_info[cnt].thread_id = cnt;
+		T_info[cnt].period = period[cnt];
 
-		res = pthread_create(&(thread_arr[i]), NULL, timer_triggered_thread, &(T_info[i])); //time triggered thread 생성
+		res = pthread_create(&(thread_arr[cnt]), NULL, timer_triggered_thread, &(T_info[cnt])); //time triggered thread 생성
 		if(res == -1){
 			error_handler(errno, "pthread_create");
 			exit(1);
