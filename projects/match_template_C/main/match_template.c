@@ -4,10 +4,12 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "util.h"
 #include "gd.h"
+#include "util.h"
 #include "match_template.h"
-#include "parallel.h"
+#include "ssd.h"
+#include "preprocess.h"
+#include "parallelization.h"
 
 int match_template(char *path_image, char *path_template, char *path_result, int format, int *coordinate, int n_proc){
 	int res = 0;
@@ -30,80 +32,6 @@ int match_template(char *path_image, char *path_template, char *path_result, int
 	fclose(template);
 
 	return 0;
-}
-
-void getpxl_from_gdImage_grayscale(float *data, gdImagePtr image){
-	int sx = (*image).sx, sy = (*image).sy;
-	float r = 0.0F, g = 0.0F, b = 0.0F;
-	int color = 0;
-
-	for(int y = 0; y < sy; y++){
-		for(int x = 0; x < sx; x++){
-			color = gdImageGetPixel(image, x, y);
-			r = gdImageRed(image, color);
-			g = gdImageGreen(image, color);
-			b = gdImageBlue(image, color);
-			data[(y * sx) + x] = (r * 0.299F) + (g * 0.587F) + (b * 0.114F);
-		}
-	}
-
-	return;
-}
-
-float calc_mean(float *data, int sx, int sy){
-	float sum_n = 0.0F;
-	int n = sx * sy;
-
-	for(int idx = 0; idx < n; idx++){
-		sum_n += data[idx];
-	}
-	return sum_n / (float)n;
-}
-
-float calc_std(float *data, int sx, int sy, float mean){
-	float std = 0.0F;
-	int n = sx * sy;
-
-	for(int idx = 0; idx < n; idx++){
-		std += (float)pow(data[idx] - mean, 2.0F);
-	}
-	return sqrt(std / (float)(n - 1));
-}
-
-void normalization(float *data, int sx, int sy){
-	float std = 0.0F, mean = 0.0F;
-	int n = sx * sy;
-
-	mean = calc_mean(data, sx, sy);
-	std = calc_std(data, sx, sy, mean);
-
-	for(int idx = 0; idx < n; idx++){
-		data[idx] = (data[idx] - mean) / std;
-	}
-
-	return;
-}
-
-void ssd(float *src_img, float *src_tmp, float *dst, int img_sx, int img_sy, int tmp_sx, int tmp_sy){
-	int dst_sx = img_sx - tmp_sx + 1, dst_sy = img_sy - tmp_sy + 1;
-	float diff = 0.0F, c = 0.0F;
-
-	for(int iy = 0; iy < dst_sy; iy++){
-		for(int ix = 0; ix < dst_sx; ix++){
-			diff = 0.0F;
-			for(int ty = 0; ty < tmp_sy; ty++){
-				for(int tx = 0; tx < tmp_sx; tx++){
-					c = src_tmp[(ty * tmp_sx) + tx] - src_img[((ty + iy) * img_sx) + (ix + tx)];
-					diff += (float)(pow(c, 2.0F));
-				}
-			}
-
-			diff = 1.0F / sqrt(diff);
-			dst[(iy * img_sx) + ix] = diff;
-		}
-	}
-
-	return;
 }
 
 int match_template_ssd(FILE *image_file, FILE *template_file, char *name_result, int format, int *coordinate, int n_proc){
@@ -159,20 +87,38 @@ int match_template_ssd(FILE *image_file, FILE *template_file, char *name_result,
 	}
 	
 	puts("data preprocessing");
-
-	getpxl_from_gdImage_grayscale(pxl_image, image);
-	getpxl_from_gdImage_grayscale(pxl_template, template);
 	
+	getpxl_from_gdImage_grayscale(pxl_image, image); 
+	getpxl_from_gdImage_grayscale(pxl_template, template); 
+
+	/*	
+	if(n_proc == 1){
+		getpxl_from_gdImage_grayscale(pxl_image, image);
+		getpxl_from_gdImage_grayscale(pxl_template, template);
+	}
+	else{
+		res = setting_parallelized_getpxl_from_gdImage_grayscale(pxl_image, image, n_proc);
+		if(res == -1){
+			return -1;
+		}
+
+		res = setting_parallelized_getpxl_from_gdImage_grayscale(pxl_template, template, n_proc);
+		if(res == -1){
+			return -1;
+		}
+	}
+	*/
+
 	normalization(pxl_image, image_sx, image_sy);
 	normalization(pxl_template, template_sx, template_sy);
-	
+
 	puts("data processing (SSD)\n");
 	
 	if(n_proc == 1){
 		ssd(pxl_image, pxl_template, pxl_result, image_sx, image_sy, template_sx, template_sy);
 	}
 	else{
-		res = set_parallel(pxl_image, pxl_template, pxl_result, image_sx, image_sy, template_sx, template_sy, n_proc);
+		res = setting_parallelized_ssd(pxl_image, pxl_template, pxl_result, image_sx, image_sy, template_sx, template_sy, n_proc);
 		if(res == -1){
 			return -1;
 		}		
