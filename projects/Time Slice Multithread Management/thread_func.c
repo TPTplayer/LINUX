@@ -16,7 +16,7 @@ extern void error_handler(int err_num, char *func); //main.c의 에러 핸들러
 pthread_mutex_t API_Mutex = PTHREAD_MUTEX_INITIALIZER; //뮤텍스 초기화
 struct TCB TCB_array[MAX]; //TCB 배열 생성
 
-void tt_thread_register(int period, int thread_id){ //time triggered thread 등록함수(API의 대부분 제공됨)
+void tt_thread_register(int period, int thread_id){ //time triggered thread 등록함수
 	int res = 0;
 
 	pthread_mutex_lock(&API_Mutex);
@@ -33,7 +33,7 @@ void tt_thread_register(int period, int thread_id){ //time triggered thread 등�
 	pthread_mutex_unlock(&API_Mutex);
 }
 
-int tt_thread_wait_invocation(int thread_id){ //time triggered thread 대기(API의 일부 제공됨)
+int tt_thread_wait_invocation(int thread_id){ //time triggered thread 대기
 	int res = 0;
 
 	pthread_mutex_lock(&API_Mutex);
@@ -47,7 +47,7 @@ int tt_thread_wait_invocation(int thread_id){ //time triggered thread 대기(API
 	return 1; //명시적으로 1 반환
 }
 
-void *timer_signal_handler(void *NumOfThread){ //타이머(주요 소스)
+void *timer_signal_handler(void *NumOfThread){ //타이머
 	int num_of_thread = *(int*)NumOfThread, i = 0, res = 0; 
 	long int tmp = 0, t_ref = 0, t_comp = 0, capture = 0, capture_ref = 0;
 	int flag_t_ref_read = 1;
@@ -116,7 +116,7 @@ void *timer_triggered_thread(void *arg){ //time triggered thread생성 시 실�
 	tt_thread_register(T_info.period, T_info.thread_id); //등록
 	while(tt_thread_wait_invocation(T_info.thread_id)){ //함수가 반환되면 loop안의 처리가 실행된다. 처리가 끝날 시 다시 wait.
 		gettimeofday(&tv, NULL); //현재시간 구하기
-		time = localtime(&tv.tv_sec); //가독성 증가
+		time = localtime(&tv.tv_sec); 
 		printf("thread id: %d -> current time: %04d-%02d-%02d %02d:%02d:%02d.%02ld\n", T_info.thread_id, time->tm_year + 1900, time->tm_mon + 1, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec, tv.tv_usec/10000);
 	}
 }
